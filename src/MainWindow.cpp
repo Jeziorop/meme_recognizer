@@ -5,7 +5,9 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <opencv2/imgproc.hpp>
 #include <tuple>
 
@@ -33,8 +35,11 @@ MainWindow::MainWindow(const std::filesystem::path& project_root, QWidget* paren
     applyDarkTheme();
 
     if (cap_.open(0, cv::CAP_V4L2) || cap_.open(0)) {
+        cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
         cap_.set(cv::CAP_PROP_FRAME_WIDTH, 640);
         cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+        cap_.set(cv::CAP_PROP_FPS, 30);
+        cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
         active_source_mode_ = 0;
         source_combo_->setCurrentIndex(0);
     } else {
@@ -296,8 +301,11 @@ void MainWindow::onSourceChanged(int combo_index) {
         if (!cap_.open(mode, cv::CAP_V4L2) && !cap_.open(mode)) {
             active_source_mode_ = -1;
         } else {
+            cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
             cap_.set(cv::CAP_PROP_FRAME_WIDTH, 640);
             cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+            cap_.set(cv::CAP_PROP_FPS, 30);
+            cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
         }
     }
 }
@@ -383,8 +391,44 @@ void MainWindow::processSingleFrame() {
     const std::string subtitle = classes.empty() ? "" : classes[cls_idx].subtitle;
     const std::string hint = classes.empty() ? "" : classes[cls_idx].hint;
 
+    const auto now = std::chrono::steady_clock::now();
+    if (has_fps_sample_) {
+        const float dt_s = std::chrono::duration<float>(now - last_frame_time_).count();
+        if (dt_s > 1e-4f) {
+            const float inst_fps = 1.0f / dt_s;
+            current_fps_ = 0.85f * current_fps_ + 0.15f * std::clamp(inst_fps, 1.0f, 240.0f);
+        }
+    } else {
+        current_fps_ = 30.0f;
+        has_fps_sample_ = true;
+    }
+    last_frame_time_ = now;
+
     if (skeleton_check_->isChecked()) {
         PoseDetector::drawSkeletonOverlay(frame, kp, title, pred.confidence, pred.backend_used);
+    }
+
+    // Top-left framerate meter badge
+    char fps_text[32];
+    std::snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", current_fps_);
+    int base_line = 0;
+    const cv::Size text_size = cv::getTextSize(fps_text, cv::FONT_HERSHEY_DUPLEX, 0.65, 2, &base_line);
+    const cv::Rect badge_rect(12, 12, text_size.width + 20, text_size.height + 14);
+    if (badge_rect.x + badge_rect.width <= frame.cols && badge_rect.y + badge_rect.height <= frame.rows) {
+        cv::Mat badge_roi = frame(badge_rect);
+        cv::Mat badge_bg(badge_roi.size(), badge_roi.type(), cv::Scalar(10, 14, 22));
+        cv::addWeighted(badge_bg, 0.82, badge_roi, 0.18, 0.0, badge_roi);
+        cv::rectangle(frame, badge_rect, cv::Scalar(0, 235, 175), 1, cv::LINE_AA);
+        cv::putText(
+            frame,
+            fps_text,
+            cv::Point(badge_rect.x + 10, badge_rect.y + text_size.height + 6),
+            cv::FONT_HERSHEY_DUPLEX,
+            0.65,
+            cv::Scalar(0, 255, 180),
+            2,
+            cv::LINE_AA
+        );
     }
 
     webcam_view_label_->setPixmap(

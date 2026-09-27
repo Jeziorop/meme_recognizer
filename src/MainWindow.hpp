@@ -59,6 +59,11 @@ private:
 
     int active_source_mode_{-1};
     int demo_tick_{0};
+
+    // Main loop framerate meter
+    std::chrono::steady_clock::time_point last_frame_time_{};
+    float current_fps_{0.0f};
+    bool has_fps_sample_{false};
 };
 
 } // namespace meme

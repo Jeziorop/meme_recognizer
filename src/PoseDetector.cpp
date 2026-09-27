@@ -155,8 +155,8 @@ void PoseDetector::drawSkeletonOverlay(
 
     const std::string hud_line1 = "DETECTED: " + gesture_title + " (" +
                                   std::to_string(static_cast<int>(std::round(confidence * 100.0f))) + "%)";
-    cv::putText(bgr_frame, hud_line1, cv::Point(16, 28), cv::FONT_HERSHEY_DUPLEX, 0.68, cv::Scalar(40, 225, 255), 2, cv::LINE_AA);
-    cv::putText(bgr_frame, gpu_summary, cv::Point(16, 54), cv::FONT_HERSHEY_SIMPLEX, 0.50, cv::Scalar(180, 235, 190), 1, cv::LINE_AA);
+    cv::putText(bgr_frame, hud_line1, cv::Point(150, 28), cv::FONT_HERSHEY_DUPLEX, 0.64, cv::Scalar(40, 225, 255), 2, cv::LINE_AA);
+    cv::putText(bgr_frame, gpu_summary, cv::Point(150, 54), cv::FONT_HERSHEY_SIMPLEX, 0.50, cv::Scalar(180, 235, 190), 1, cv::LINE_AA);
 }
 
 } // namespace meme
