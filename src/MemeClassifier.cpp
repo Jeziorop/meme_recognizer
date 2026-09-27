@@ -1,41 +1,41 @@
 #include "MemeClassifier.hpp"
 #include "GpuDeviceManager.hpp"
 
-#include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <opencv2/core/persistence.hpp>
 
 namespace meme {
 
 bool MemeClassifier::loadManifest(const std::filesystem::path& manifest_json_path) {
-    QFile file(QString::fromStdString(manifest_json_path.string()));
-    if (!file.open(QIODevice::ReadOnly)) {
+    if (!std::filesystem::exists(manifest_json_path)) {
         return false;
     }
 
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    if (!doc.isObject()) {
+    cv::FileStorage fs(manifest_json_path.string(), cv::FileStorage::READ | cv::FileStorage::FORMAT_JSON);
+    if (!fs.isOpened()) {
         return false;
     }
 
-    const QJsonArray arr = doc.object().value("classes").toArray();
+    const cv::FileNode classes_node = fs["classes"];
+    if (!classes_node.isSeq()) {
+        return false;
+    }
+
     classes_.clear();
     const auto base_dir = manifest_json_path.parent_path();
 
-    for (const QJsonValue& val : arr) {
-        const QJsonObject obj = val.toObject();
+    for (const auto& obj : classes_node) {
         MemeClassInfo info{};
-        info.index = obj.value("index").toInt();
-        info.id = obj.value("id").toString().toStdString();
-        info.title = obj.value("title").toString().toStdString();
-        info.subtitle = obj.value("subtitle").toString().toStdString();
-        info.hint = obj.value("hint").toString().toStdString();
-        info.accent_hex = obj.value("accent_hex").toString().toStdString();
-        info.image_path = (base_dir / obj.value("image").toString().toStdString()).string();
+        info.index = static_cast<int>(obj["index"]);
+        info.id = static_cast<std::string>(obj["id"]);
+        info.title = static_cast<std::string>(obj["title"]);
+        info.subtitle = static_cast<std::string>(obj["subtitle"]);
+        info.hint = static_cast<std::string>(obj["hint"]);
+        info.accent_hex = static_cast<std::string>(obj["accent_hex"]);
+        const std::string img_rel = static_cast<std::string>(obj["image"]);
+        info.image_path = (base_dir / img_rel).string();
         classes_.push_back(std::move(info));
     }
 

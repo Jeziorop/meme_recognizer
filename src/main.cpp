@@ -1,32 +1,66 @@
 #include "MainWindow.hpp"
 
-#include <QApplication>
-#include <QCommandLineParser>
-#include <QImage>
-#include <QMouseEvent>
-#include <QTimer>
-#include <QWidget>
-#include <QtPlugin>
-#include <cstdlib>
-#include <filesystem>
-#include <iostream>
-
-#if defined(MEME_HAVE_STATIC_OFFSCREEN_PLUGIN) && MEME_HAVE_STATIC_OFFSCREEN_PLUGIN
-Q_IMPORT_PLUGIN(QOffscreenIntegrationPlugin)
+#if __has_include("imgui.h")
+#include "imgui.h"
+#include "backends/imgui_impl_opengl2.h"
+#include "backends/imgui_impl_opengl3.h"
+#else
+#include "../third_party/imgui/imgui.h"
+#include "../third_party/imgui/backends/imgui_impl_opengl2.h"
+#include "../third_party/imgui/backends/imgui_impl_opengl3.h"
 #endif
 
-#if defined(MEME_HAVE_X11) && MEME_HAVE_X11
+#include <GL/gl.h>
+#include <GL/glx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
-#endif
+
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+#include <string>
+#include <thread>
 
 namespace {
 
-#if defined(MEME_HAVE_X11) && MEME_HAVE_X11
-class X11DesktopBridge {
+struct CliOptions {
+    bool self_test{false};
+    bool has_pose{false};
+    int pose_index{0};
+    std::string capture_path{};
+};
+
+CliOptions parseCli(int argc, char* argv[]) {
+    CliOptions opts{};
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--self-test") {
+            opts.self_test = true;
+        } else if (arg == "--capture" && i + 1 < argc) {
+            opts.capture_path = argv[++i];
+        } else if (arg == "--pose" && i + 1 < argc) {
+            opts.has_pose = true;
+            opts.pose_index = std::atoi(argv[++i]);
+        } else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: meme_recognizer [--self-test] [--capture <file.png>] [--pose <0..7>]\n";
+            std::exit(0);
+        } else if (arg == "--version" || arg == "-v") {
+            std::cout << "MemeGestureRecognizer 0.2.0 (Dear ImGui + OpenGL + CUDA)\n";
+            std::exit(0);
+        }
+    }
+    return opts;
+}
+
+class GlxImGuiWindow {
 public:
-    explicit X11DesktopBridge(meme::MainWindow* window) : main_win_(window) {
+    GlxImGuiWindow(int width, int height, const char* title, meme::MainWindow* main_win)
+        : width_(width), height_(height) {
         if (std::getenv("DISPLAY") == nullptr) {
             return;
         }
@@ -34,195 +68,249 @@ public:
         if (dpy_ == nullptr) {
             return;
         }
-        const int screen = DefaultScreen(dpy_);
-        width_ = main_win_->width();
-        height_ = main_win_->height();
-        xwin_ = XCreateSimpleWindow(
+
+        int attribs[] = {
+            GLX_RGBA,
+            GLX_DEPTH_SIZE, 24,
+            GLX_DOUBLEBUFFER,
+            None
+        };
+        vi_ = glXChooseVisual(dpy_, 0, attribs);
+        if (vi_ == nullptr) {
+            XCloseDisplay(dpy_);
+            dpy_ = nullptr;
+            return;
+        }
+
+        Window root = DefaultRootWindow(dpy_);
+        cmap_ = XCreateColormap(dpy_, root, vi_->visual, AllocNone);
+
+        XSetWindowAttributes swa{};
+        swa.colormap = cmap_;
+        swa.event_mask =
+            ExposureMask | KeyPressMask | KeyReleaseMask |
+            ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+            StructureNotifyMask;
+
+        xwin_ = XCreateWindow(
             dpy_,
-            RootWindow(dpy_, screen),
+            root,
             40,
             40,
             static_cast<unsigned int>(width_),
             static_cast<unsigned int>(height_),
-            1,
-            BlackPixel(dpy_, screen),
-            BlackPixel(dpy_, screen)
+            0,
+            vi_->depth,
+            InputOutput,
+            vi_->visual,
+            CWColormap | CWEventMask,
+            &swa
         );
-        XStoreName(
-            dpy_,
-            xwin_,
-            "Meme Gesture Recognizer — C++20 | OpenCV 4 DNN | CUDA GPU | Qt 6 (Keys: 0=Webcam, 1-8=Memes, C=Cycle, Q=Quit)"
-        );
+
         wm_delete_ = XInternAtom(dpy_, "WM_DELETE_WINDOW", False);
         XSetWMProtocols(dpy_, xwin_, &wm_delete_, 1);
-        XSelectInput(dpy_, xwin_, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
-        gc_ = DefaultGC(dpy_, screen);
-        visual_ = DefaultVisual(dpy_, screen);
-        depth_ = DefaultDepth(dpy_, screen);
-        XMapWindow(dpy_, xwin_);
-        XFlush(dpy_);
-    }
+        XStoreName(dpy_, xwin_, title);
 
-    ~X11DesktopBridge() {
-        if (dpy_ != nullptr) {
-            if (xwin_ != 0) {
-                XDestroyWindow(dpy_, xwin_);
-            }
-            XCloseDisplay(dpy_);
+        Atom net_wm_name = XInternAtom(dpy_, "_NET_WM_NAME", False);
+        Atom utf8_string = XInternAtom(dpy_, "UTF8_STRING", False);
+        if (net_wm_name != None && utf8_string != None) {
+            XChangeProperty(
+                dpy_,
+                xwin_,
+                net_wm_name,
+                utf8_string,
+                8,
+                PropModeReplace,
+                reinterpret_cast<const unsigned char*>(title),
+                static_cast<int>(std::strlen(title))
+            );
         }
+
+        XMapRaised(dpy_, xwin_);
+        XFlush(dpy_);
+
+        const auto map_wait_start = std::chrono::steady_clock::now();
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now() - map_wait_start
+               ).count() < 120) {
+            XEvent ev{};
+            if (XCheckTypedWindowEvent(dpy_, xwin_, MapNotify, &ev)) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+
+        glc_ = glXCreateContext(dpy_, vi_, nullptr, GL_TRUE);
+        if (glc_ == nullptr) {
+            XDestroyWindow(dpy_, xwin_);
+            XFreeColormap(dpy_, cmap_);
+            XFree(vi_);
+            XCloseDisplay(dpy_);
+            dpy_ = nullptr;
+            return;
+        }
+
+        glXMakeCurrent(dpy_, xwin_, glc_);
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = nullptr;
+        io.DisplaySize = ImVec2(static_cast<float>(width_), static_cast<float>(height_));
+
+        if (main_win != nullptr) {
+            main_win->initFonts();
+        }
+        meme::MainWindow::applyImGuiDarkTheme();
+
+        if (ImGui_ImplOpenGL3_Init("#version 130")) {
+            use_gl3_ = true;
+        } else {
+            ImGui_ImplOpenGL2_Init();
+            use_gl3_ = false;
+        }
+
+        last_frame_tp_ = std::chrono::steady_clock::now();
+        active_ = true;
     }
 
-    [[nodiscard]] bool isActive() const noexcept { return dpy_ != nullptr && xwin_ != 0; }
+    ~GlxImGuiWindow() {
+        if (!active_) {
+            return;
+        }
+        if (use_gl3_) {
+            ImGui_ImplOpenGL3_Shutdown();
+        } else {
+            ImGui_ImplOpenGL2_Shutdown();
+        }
+        ImGui::DestroyContext();
 
-    void syncFrame() {
-        if (!isActive()) return;
+        glXMakeCurrent(dpy_, None, nullptr);
+        glXDestroyContext(dpy_, glc_);
+        XDestroyWindow(dpy_, xwin_);
+        XFreeColormap(dpy_, cmap_);
+        XFree(vi_);
+        XCloseDisplay(dpy_);
+    }
 
+    bool isActive() const { return active_; }
+    bool shouldClose() const { return should_close_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+
+    void pollEvents() {
+        if (!active_) {
+            return;
+        }
+        ImGuiIO& io = ImGui::GetIO();
         while (XPending(dpy_) > 0) {
             XEvent ev{};
             XNextEvent(dpy_, &ev);
-            if (ev.type == ClientMessage && static_cast<Atom>(ev.xclient.data.l[0]) == wm_delete_) {
-                QApplication::quit();
-                return;
-            }
-            if (ev.type == ConfigureNotify) {
-                // Window resized by user or window manager
-                width_ = ev.xconfigure.width;
-                height_ = ev.xconfigure.height;
-                main_win_->resize(width_, height_);
-            } else if (ev.type == KeyPress) {
-                const KeySym sym = XLookupKeysym(&ev.xkey, 0);
-                if (sym == XK_Escape || sym == XK_q || sym == XK_Q) {
-                    QApplication::quit();
-                    return;
+            if (ev.type == ClientMessage) {
+                if (static_cast<Atom>(ev.xclient.data.l[0]) == wm_delete_) {
+                    should_close_ = true;
                 }
-                if (sym >= XK_1 && sym <= XK_8) {
-                    main_win_->setSimulatedPoseMode(static_cast<int>(sym - XK_1));
+            } else if (ev.type == ConfigureNotify) {
+                if (ev.xconfigure.width > 0 && ev.xconfigure.height > 0) {
+                    width_ = ev.xconfigure.width;
+                    height_ = ev.xconfigure.height;
                 }
-            } else if (ev.type == ButtonPress || ev.type == ButtonRelease) {
-                const QPoint local_pos(ev.xbutton.x, ev.xbutton.y);
-                const QPoint global_pos = main_win_->mapToGlobal(local_pos);
-                Qt::MouseButton btn = Qt::LeftButton;
-                if (ev.xbutton.button == 2) btn = Qt::MiddleButton;
-                else if (ev.xbutton.button == 3) btn = Qt::RightButton;
-
-                QWidget* target = QApplication::widgetAt(global_pos);
-                if (target == nullptr) {
-                    target = main_win_->childAt(local_pos);
-                }
-                if (target == nullptr) {
-                    target = main_win_;
-                }
-
-                const QPoint widget_pos = target->mapFromGlobal(global_pos);
-                const QEvent::Type event_type = (ev.type == ButtonPress) ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease;
-                QMouseEvent mouse_ev(
-                    event_type,
-                    QPointF(widget_pos),
-                    QPointF(global_pos),
-                    btn,
-                    (ev.type == ButtonPress) ? btn : Qt::NoButton,
-                    Qt::NoModifier
-                );
-                QApplication::sendEvent(target, &mouse_ev);
             } else if (ev.type == MotionNotify) {
-                const QPoint local_pos(ev.xmotion.x, ev.xmotion.y);
-                const QPoint global_pos = main_win_->mapToGlobal(local_pos);
-                QWidget* target = QApplication::widgetAt(global_pos);
-                if (target == nullptr) {
-                    target = main_win_->childAt(local_pos);
-                }
-                if (target == nullptr) {
-                    target = main_win_;
-                }
-
-                const QPoint widget_pos = target->mapFromGlobal(global_pos);
-                Qt::MouseButtons btns = Qt::NoButton;
-                if (ev.xmotion.state & Button1Mask) btns |= Qt::LeftButton;
-                if (ev.xmotion.state & Button2Mask) btns |= Qt::MiddleButton;
-                if (ev.xmotion.state & Button3Mask) btns |= Qt::RightButton;
-
-                QMouseEvent mouse_ev(
-                    QEvent::MouseMove,
-                    QPointF(widget_pos),
-                    QPointF(global_pos),
-                    Qt::NoButton,
-                    btns,
-                    Qt::NoModifier
+                io.AddMousePosEvent(
+                    static_cast<float>(ev.xmotion.x),
+                    static_cast<float>(ev.xmotion.y)
                 );
-                QApplication::sendEvent(target, &mouse_ev);
+            } else if (ev.type == ButtonPress || ev.type == ButtonRelease) {
+                const bool is_down = (ev.type == ButtonPress);
+                if (ev.xbutton.button == Button1) {
+                    io.AddMouseButtonEvent(0, is_down);
+                } else if (ev.xbutton.button == Button3) {
+                    io.AddMouseButtonEvent(1, is_down);
+                } else if (ev.xbutton.button == Button2) {
+                    io.AddMouseButtonEvent(2, is_down);
+                } else if (ev.xbutton.button == Button4 && is_down) {
+                    io.AddMouseWheelEvent(0.0f, 1.0f);
+                } else if (ev.xbutton.button == Button5 && is_down) {
+                    io.AddMouseWheelEvent(0.0f, -1.0f);
+                }
+            } else if (ev.type == KeyPress) {
+                KeySym ks = XLookupKeysym(&ev.xkey, 0);
+                if (ks == XK_Escape || ks == XK_q || ks == XK_Q) {
+                    should_close_ = true;
+                }
             }
         }
+    }
 
-        QImage img = main_win_->grab().toImage().convertToFormat(QImage::Format_RGB32);
-        if (img.isNull()) return;
-
-        XImage* ximg = XCreateImage(
-            dpy_,
-            visual_,
-            static_cast<unsigned int>(depth_),
-            ZPixmap,
-            0,
-            reinterpret_cast<char*>(img.bits()),
-            static_cast<unsigned int>(img.width()),
-            static_cast<unsigned int>(img.height()),
-            32,
-            static_cast<int>(img.bytesPerLine())
-        );
-        if (ximg != nullptr) {
-            XPutImage(
-                dpy_,
-                xwin_,
-                gc_,
-                ximg,
-                0,
-                0,
-                0,
-                0,
-                static_cast<unsigned int>(img.width()),
-                static_cast<unsigned int>(img.height())
-            );
-            ximg->data = nullptr; // Owned by QImage
-            XDestroyImage(ximg);
+    void beginFrame() {
+        const auto now = std::chrono::steady_clock::now();
+        float dt = std::chrono::duration<float>(now - last_frame_tp_).count();
+        if (dt <= 0.0f || dt > 0.5f) {
+            dt = 1.0f / 30.0f;
         }
-        XFlush(dpy_);
+        last_frame_tp_ = now;
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(static_cast<float>(width_), static_cast<float>(height_));
+        io.DeltaTime = dt;
+
+        if (use_gl3_) {
+            ImGui_ImplOpenGL3_NewFrame();
+        } else {
+            ImGui_ImplOpenGL2_NewFrame();
+        }
+        ImGui::NewFrame();
+    }
+
+    void renderDrawData() {
+        ImGui::Render();
+        glViewport(0, 0, width_, height_);
+        glClearColor(0.043f, 0.059f, 0.098f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        if (use_gl3_) {
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        } else {
+            ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+        }
+        glFinish();
+    }
+
+    void swapBuffers() {
+        glXSwapBuffers(dpy_, xwin_);
+    }
+
+    cv::Mat captureFramebufferBgr() const {
+        cv::Mat rgba(height_, width_, CV_8UC4);
+        glReadBuffer(GL_BACK);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data);
+        cv::Mat flipped;
+        cv::flip(rgba, flipped, 0);
+        cv::Mat bgr;
+        cv::cvtColor(flipped, bgr, cv::COLOR_RGBA2BGR);
+        return bgr;
     }
 
 private:
-    meme::MainWindow* main_win_{nullptr};
+    int width_{1480};
+    int height_{920};
     Display* dpy_{nullptr};
+    XVisualInfo* vi_{nullptr};
+    Colormap cmap_{0};
     Window xwin_{0};
-    GC gc_{nullptr};
-    Visual* visual_{nullptr};
-    int depth_{24};
-    int width_{1360};
-    int height_{820};
+    GLXContext glc_{nullptr};
     Atom wm_delete_{0};
+    bool use_gl3_{true};
+    bool active_{false};
+    bool should_close_{false};
+    std::chrono::steady_clock::time_point last_frame_tp_{};
 };
-#endif
 
 } // namespace
 
 int main(int argc, char* argv[]) {
-    if (std::getenv("QT_QPA_PLATFORM") == nullptr) {
-        qputenv("QT_QPA_PLATFORM", "offscreen");
-    }
-
-    QApplication app(argc, argv);
-    QApplication::setApplicationName("MemeGestureRecognizer");
-    QApplication::setApplicationVersion("0.1.0");
-
-    QCommandLineParser parser;
-    parser.setApplicationDescription("Real-Time GPU Meme Gesture Recognizer (C++20 / OpenCV 4 / CUDA / Qt 6)");
-    parser.addHelpOption();
-    parser.addVersionOption();
-
-    QCommandLineOption selfTestOpt("self-test", "Run automated GUI + GPU rendering self-test and exit.");
-    QCommandLineOption captureOpt("capture", "Save rendered window screenshot to path.", "file");
-    QCommandLineOption poseOpt("pose", "Set initial pose index (0..7, e.g., 0 for Absolute Cinema).", "index", "0");
-    parser.addOption(selfTestOpt);
-    parser.addOption(captureOpt);
-    parser.addOption(poseOpt);
-    parser.process(app);
+    const CliOptions opts = parseCli(argc, argv);
 
     std::filesystem::path root_dir = std::filesystem::current_path();
     if (!std::filesystem::exists(root_dir / "assets" / "memes" / "manifest.json")) {
@@ -234,37 +322,70 @@ int main(int argc, char* argv[]) {
 
     meme::MainWindow window(root_dir);
 
-    if (parser.isSet(poseOpt) || parser.isSet(selfTestOpt) || parser.isSet(captureOpt)) {
-        const int pose_idx = parser.value(poseOpt).toInt();
-        window.setSimulatedPoseMode(pose_idx);
+    if (opts.has_pose || opts.self_test || !opts.capture_path.empty()) {
+        window.setSimulatedPoseMode(opts.pose_index);
     }
 
-    window.show();
-    window.processSingleFrame();
-    QApplication::processEvents();
+    GlxImGuiWindow gl_win(
+        window.width(),
+        window.height(),
+        "Meme Gesture Recognizer - C++20 | OpenCV 4 DNN | CUDA GPU | Dear ImGui + OpenGL",
+        &window
+    );
 
-    if (parser.isSet(captureOpt)) {
-        const QString out_path = parser.value(captureOpt);
-        const QPixmap grab = window.grab();
-        grab.save(out_path, "PNG");
-        std::cout << "[MemeRecognizer] Captured window screenshot to " << out_path.toStdString() << "\n";
+    if (opts.self_test || !opts.capture_path.empty()) {
+        window.processSingleFrame();
+        if (gl_win.isActive()) {
+            // Render two warmup frames so Dear ImGui layout/table columns settle
+            for (int f = 0; f < 2; ++f) {
+                gl_win.pollEvents();
+                gl_win.beginFrame();
+                window.renderImGui(gl_win.width(), gl_win.height());
+                gl_win.renderDrawData();
+                if (f == 0) {
+                    gl_win.swapBuffers();
+                }
+            }
+        }
+        if (!opts.capture_path.empty()) {
+            const cv::Mat shot = gl_win.isActive()
+                ? gl_win.captureFramebufferBgr()
+                : window.renderCompositeBgr();
+            cv::imwrite(opts.capture_path, shot);
+            std::cout << "[MemeRecognizer] Captured window screenshot to " << opts.capture_path << "\n";
+        }
+        if (gl_win.isActive()) {
+            gl_win.swapBuffers();
+        }
+        if (opts.self_test) {
+            std::cout << "[MemeRecognizer] Self-test completed successfully.\n";
+            return 0;
+        }
     }
 
-    if (parser.isSet(selfTestOpt)) {
-        std::cout << "[MemeRecognizer] Self-test completed successfully.\n";
-        return 0;
+    if (!gl_win.isActive()) {
+        std::cerr << "[MemeRecognizer] Error: Could not open X11/GLX display window (check DISPLAY environment variable).\n";
+        return 1;
     }
 
-#if defined(MEME_HAVE_X11) && MEME_HAVE_X11
-    X11DesktopBridge x11_bridge(&window);
-    QTimer presenter_timer;
-    if (x11_bridge.isActive()) {
-        QObject::connect(&presenter_timer, &QTimer::timeout, [&]() {
-            x11_bridge.syncFrame();
-        });
-        presenter_timer.start(33);
-    }
-#endif
+    while (!gl_win.shouldClose()) {
+        const auto frame_start = std::chrono::steady_clock::now();
 
-    return app.exec();
+        gl_win.pollEvents();
+        window.processSingleFrame();
+
+        gl_win.beginFrame();
+        window.renderImGui(gl_win.width(), gl_win.height());
+        gl_win.renderDrawData();
+        gl_win.swapBuffers();
+
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - frame_start
+        ).count();
+        if (elapsed_ms < 16) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16 - elapsed_ms));
+        }
+    }
+
+    return 0;
 }

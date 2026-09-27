@@ -36,38 +36,54 @@ A real-time desktop application written in **C++20** that recognizes iconic meme
 ## Prerequisites & System Requirements
 
 ### 1. Operating System & Hardware
-- **OS**: Linux (tested on Ubuntu 22.04 / 24.04 LTS).
+- **OS**: Linux (tested on Ubuntu 24.04 LTS).
 - **Webcam**: Standard USB or integrated webcam (`/dev/video0` or `/dev/video2`).
 - **GPU (Optional but recommended)**: Any NVIDIA CUDA-capable GPU with driver version $\ge$ 525 (automatic fallback to CPU if no CUDA GPU is detected).
 
 ### 2. System Packages & Build Tools
-Install the required system compilers and build utilities:
+Install the required system compilers, build utilities, Autotools (needed by vcpkg ports), and development libraries:
 ```bash
 sudo apt update
 sudo apt install -y build-essential g++ cmake ninja-build git pkg-config \
-    libx11-dev libxext-dev libxrender-dev libgl1-mesa-dev libxkbcommon-dev
+    autoconf autoconf-archive automake libtool zip unzip tar curl \
+    libx11-dev libxext-dev libxrender-dev libgl1-mesa-dev libegl1-mesa-dev \
+    libxkbcommon-dev libxkbcommon-x11-dev libfontconfig1-dev libfreetype6-dev \
+    libv4l-dev v4l-utils
 ```
 
 ### 3. CUDA Toolkit (For GPU Acceleration)
+First, verify whether NVIDIA CUDA compiler is already installed:
 ```bash
-# If using NVIDIA GPU
-sudo apt install -y nvidia-cuda-toolkit
 nvcc --version
+```
+If not installed and you have an NVIDIA GPU:
+```bash
+sudo apt install -y nvidia-cuda-toolkit
 ```
 
 ### 4. Python Package Manager (`uv`)
-Install [`uv`](https://github.com/astral-sh/uv) (fast Python package installer):
+Check if `uv` is already available:
+```bash
+uv --version
+```
+If not installed, install [`uv`](https://github.com/astral-sh/uv) (fast Python package and project manager):
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ### 5. C++ Dependencies (`vcpkg`)
-Ensure `vcpkg` is installed and set in your environment:
+Check if `vcpkg` is already installed and `VCPKG_ROOT` is configured:
+```bash
+vcpkg version
+echo "$VCPKG_ROOT"
+```
+If you do not already have `vcpkg`, clone and bootstrap it, then export `VCPKG_ROOT`:
 ```bash
 git clone https://github.com/microsoft/vcpkg.git ~/.local/share/vcpkg
 ~/.local/share/vcpkg/bootstrap-vcpkg.sh
 export VCPKG_ROOT="$HOME/.local/share/vcpkg"
 ```
+*(Tip: add `export VCPKG_ROOT="$HOME/.local/share/vcpkg"` to your `~/.bashrc` or `~/.zshrc` so it persists).*
 
 ---
 

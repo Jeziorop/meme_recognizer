@@ -28,16 +28,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs videoio dnn)
-find_package(BZip2 QUIET)
-find_package(PNG QUIET)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-find_package(EXPAT QUIET)
-find_package(X11 QUIET)
+find_package(OpenGL REQUIRED)
+find_package(X11 REQUIRED)
 
 set(CORE_SOURCES
     src/GpuDeviceManager.cpp
@@ -52,7 +45,7 @@ endif()
 
 add_library(meme_core STATIC ${CORE_SOURCES})
 target_include_directories(meme_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(meme_core PUBLIC ${OpenCV_LIBS} Qt6::Core Qt6::Gui freetype EXPAT::EXPAT BZip2::BZip2 PNG::PNG)
+target_link_libraries(meme_core PUBLIC ${OpenCV_LIBS})
 target_compile_options(meme_core PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra -Wpedantic -O3>
 )
@@ -62,29 +55,40 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries(meme_core PUBLIC CUDA::cudart)
 endif()
 
-if(TARGET Fontconfig::Fontconfig)
-    set_property(TARGET Fontconfig::Fontconfig APPEND PROPERTY
-        INTERFACE_LINK_LIBRARIES freetype EXPAT::EXPAT BZip2::BZip2 PNG::PNG
-    )
-endif()
+# Dear ImGui + OpenGL Backend Static Library
+add_library(imgui_lib STATIC
+    third_party/imgui/imgui.cpp
+    third_party/imgui/imgui_draw.cpp
+    third_party/imgui/imgui_tables.cpp
+    third_party/imgui/imgui_widgets.cpp
+    third_party/imgui/backends/imgui_impl_opengl2.cpp
+    third_party/imgui/backends/imgui_impl_opengl3.cpp
+)
+target_include_directories(imgui_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends
+)
+target_link_libraries(imgui_lib PUBLIC OpenGL::GL ${CMAKE_DL_LIBS})
+target_compile_options(imgui_lib PRIVATE -O3)
 
-# Main Desktop GUI Application
+# Main Desktop GUI Application (Dear ImGui + OpenGL + X11/GLX)
 add_executable(meme_recognizer
     src/main.cpp
     src/MainWindow.cpp
     src/MainWindow.hpp
 )
-target_link_libraries(meme_recognizer PRIVATE meme_core Qt6::Widgets)
-if(TARGET Qt6::QOffscreenIntegrationPlugin)
-    target_link_libraries(meme_recognizer PRIVATE Qt6::QOffscreenIntegrationPlugin)
-    target_compile_definitions(meme_recognizer PRIVATE MEME_HAVE_STATIC_OFFSCREEN_PLUGIN=1)
-endif()
-if(X11_FOUND)
-    target_compile_definitions(meme_recognizer PRIVATE MEME_HAVE_X11=1)
-    target_include_directories(meme_recognizer PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(meme_recognizer PRIVATE ${X11_LIBRARIES})
-endif()
-target_link_libraries(meme_recognizer PRIVATE ${STATIC_FONT_GROUP})
+target_include_directories(meme_recognizer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends
+    ${X11_INCLUDE_DIR}
+)
+target_link_libraries(meme_recognizer PRIVATE
+    meme_core
+    imgui_lib
+    OpenGL::GL
+    ${X11_LIBRARIES}
+    ${CMAKE_DL_LIBS}
+)
 target_compile_options(meme_recognizer PRIVATE -Wall -Wextra -Wpedantic -O3)
 
 # Automated Unit & Integration Test Suite
@@ -92,10 +96,6 @@ enable_testing()
 add_executable(meme_recognizer_tests
     tests/test_meme_recognizer.cpp
 )
-target_link_libraries(meme_recognizer_tests PRIVATE meme_core Qt6::Widgets)
-if(TARGET Qt6::QOffscreenIntegrationPlugin)
-    target_link_libraries(meme_recognizer_tests PRIVATE Qt6::QOffscreenIntegrationPlugin)
-endif()
-target_link_libraries(meme_recognizer_tests PRIVATE ${STATIC_FONT_GROUP})
+target_link_libraries(meme_recognizer_tests PRIVATE meme_core)
 add_test(NAME MemeRecognizerEndToEndTests COMMAND meme_recognizer_tests
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
