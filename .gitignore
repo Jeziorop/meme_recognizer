@@ -1,0 +1,42 @@
+# Build artifacts
+build/
+bin/
+lib/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+compile_commands.json
+.ninja_log
+.ninja_deps
+
+# CMake & IDEs
+CMakeUserPresets.json
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python & UV
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+
+# Ultralytics & Pretrained Large Weights (auto-downloadable via uv run python ml/fetch_pose_backbone.py)
+*.pt
+yolov8n-pose.pt
+
+# User-recorded local webcam dataset
+data/webcam_dataset/
+
+# OS specific
+.DS_Store
+Thumbs.db

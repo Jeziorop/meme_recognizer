@@ -1,0 +1,8 @@
+{
+  "device": "cuda:0",
+  "gpu_name": "Quadro P620",
+  "val_accuracy": 1.0,
+  "onnx_cv_dnn_max_abs_diff": 1.430511474609375e-06,
+  "onnx_model_path": "models/meme_gesture_classifier.onnx",
+  "cuda_bin_path": "models/meme_gesture_classifier.bin"
+}

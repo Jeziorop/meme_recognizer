@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "meme-recognizer",
+  "version-string": "0.1.0",
+  "description": "Real-time GPU-accelerated webcam meme gesture recognizer in C++20 using OpenCV 4 DNN, CUDA, and Qt 6",
+  "dependencies": [
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": [
+        "dnn",
+        "opencl",
+        "jpeg",
+        "png",
+        "webp",
+        "v4l"
+      ]
+    },
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "gui",
+        "widgets",
+        "fontconfig",
+        "freetype",
+        "harfbuzz",
+        "png"
+      ]
+    }
+  ]
+}

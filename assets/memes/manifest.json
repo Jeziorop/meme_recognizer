@@ -1,0 +1,76 @@
+{
+  "classes": [
+    {
+      "id": "absolute_cinema",
+      "title": "ABSOLUTE CINEMA",
+      "subtitle": "Martin Scorsese - Both hands raised open at head height",
+      "hint": "Raise both hands open near head/shoulder height with elbows bent",
+      "accent_hex": "#F59E0B",
+      "index": 0,
+      "image": "absolute_cinema.png"
+    },
+    {
+      "id": "thinking_roll_safe",
+      "title": "THINKING (ROLL SAFE)",
+      "subtitle": "Kayode Ewumi - Finger tapping temple, other arm relaxed",
+      "hint": "Touch your temple/forehead with one hand while keeping the other arm down",
+      "accent_hex": "#3B82F6",
+      "index": 1,
+      "image": "thinking_roll_safe.png"
+    },
+    {
+      "id": "leo_pointing",
+      "title": "LEO POINTING",
+      "subtitle": "Leonardo DiCaprio - Pointing at the screen, hand on chest",
+      "hint": "Extend one arm straight out to the side and hold the other hand near your chest",
+      "accent_hex": "#EF4444",
+      "index": 2,
+      "image": "leo_pointing.png"
+    },
+    {
+      "id": "drake_reject",
+      "title": "DRAKE REJECT",
+      "subtitle": "Hotline Bling - Both hands raised sideways blocking/rejecting",
+      "hint": "Sweep both hands together to one side at shoulder height",
+      "accent_hex": "#F97316",
+      "index": 3,
+      "image": "drake_reject.png"
+    },
+    {
+      "id": "arms_crossed",
+      "title": "ARMS CROSSED (X)",
+      "subtitle": "Wakanda Forever - Both forearms crossed in an X over chest",
+      "hint": "Cross both wrists over your opposite shoulders across your chest",
+      "accent_hex": "#8B5CF6",
+      "index": 4,
+      "image": "arms_crossed.png"
+    },
+    {
+      "id": "shocked_hands_head",
+      "title": "SHOCKED / HANDS ON HEAD",
+      "subtitle": "Surprised Guy - Both hands placed high on crown/sides of head",
+      "hint": "Place both hands directly on top/sides of your head with elbows flared out",
+      "accent_hex": "#EC4899",
+      "index": 5,
+      "image": "shocked_hands_head.png"
+    },
+    {
+      "id": "t_pose",
+      "title": "T-POSE DOMINANCE",
+      "subtitle": "Assert Dominance - Both arms stretched straight horizontally",
+      "hint": "Extend both arms straight out horizontally at shoulder level",
+      "accent_hex": "#10B981",
+      "index": 6,
+      "image": "t_pose.png"
+    },
+    {
+      "id": "neutral_chill",
+      "title": "CHILL / NEUTRAL",
+      "subtitle": "Just a Chill Guy - Relaxed idle pose with arms resting down",
+      "hint": "Relax both arms down at your sides",
+      "accent_hex": "#64748B",
+      "index": 7,
+      "image": "neutral_chill.png"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "meme-recognizer-ml"
+version = "0.1.0"
+description = "GPU-accelerated PyTorch training, real webcam dataset curation, and ONNX export pipeline for Meme Gesture Recognizer"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch==2.4.1",
+    "torchvision==0.19.1",
+    "ultralytics>=8.2.0",
+    "onnx>=1.16.0",
+    "opencv-python-headless>=4.9.0",
+    "numpy>=1.26.0,<2.0.0",
+    "pillow>=10.2.0",
+    "requests>=2.31.0",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+prepare-all = "ml.pipeline:main"
+record-dataset = "ml.record_dataset:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ml"]
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu121" }]
+torchvision = [{ index = "pytorch-cu121" }]
