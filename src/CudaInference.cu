@@ -120,10 +120,10 @@ __global__ void memePoseClassifierKernel(
         __syncthreads();
     }
 
-    // Head: Linear(128 -> 8)
-    const float* head_w = p; p += 8 * 128;
+    // Head: Linear(128 -> kNumMemeClasses)
+    const float* head_w = p; p += kNumMemeClasses * 128;
     const float* head_b = p;
-    if (tid < 8) {
+    if (tid < static_cast<int>(kNumMemeClasses)) {
         float acc = head_b[tid];
         const float* row = head_w + tid * 128;
         for (int j = 0; j < 128; ++j) {
@@ -160,7 +160,7 @@ bool CudaInferenceEngine::loadWeights(const std::filesystem::path& bin_path) {
 
     std::uint32_t header[5]{};
     ifs.read(reinterpret_cast<char*>(header), sizeof(header));
-    if (!ifs || header[0] != 0x4D454D45u || header[2] != 54u || header[3] != 128u || header[4] != 8u) {
+    if (!ifs || header[0] != 0x4D454D45u || header[2] != kFeatureDim || header[3] != 128u || header[4] != kNumMemeClasses) {
         return false;
     }
 

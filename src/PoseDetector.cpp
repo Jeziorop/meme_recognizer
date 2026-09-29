@@ -23,7 +23,7 @@ bool PoseDetector::loadModels(const std::filesystem::path& onnx_path) {
 }
 
 PoseSkeleton PoseDetector::detect(const cv::Mat& bgr_frame) {
-    PoseSkeleton kp = PoseFeatureExtractor::getCanonicalPose(7, false);
+    PoseSkeleton kp = PoseFeatureExtractor::getCanonicalPose(static_cast<int>(kNumMemeClasses) - 1, false);
     if (bgr_frame.empty() || !onnx_loaded_) {
         return kp;
     }

@@ -31,7 +31,7 @@ int main() {
     );
     assert(pose_ok && "Failed to load Stage-1 yolov8n-pose.onnx");
 
-    // Verify all 8 canonical meme poses (both unmirrored and mirrored!) classify with 100% Top-1 accuracy
+    // Verify all 9 canonical meme poses (both unmirrored and mirrored!) classify with 100% Top-1 accuracy
     for (int c = 0; c < static_cast<int>(meme::kNumMemeClasses); ++c) {
         for (bool mirror : {false, true}) {
             classifier.resetSmoothing();
@@ -53,6 +53,6 @@ int main() {
         }
     }
 
-    std::cout << "=== ALL 16/16 CANONICAL & MIRRORED POSE TESTS PASSED ON GPU! ===\n";
+    std::cout << "=== ALL 18/18 CANONICAL & MIRRORED POSE TESTS PASSED ON GPU! ===\n";
     return 0;
 }

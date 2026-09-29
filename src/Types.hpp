@@ -9,7 +9,7 @@ namespace meme {
 
 inline constexpr std::size_t kFeatureDim = 54;
 inline constexpr std::size_t kNumKeypoints = 17;
-inline constexpr std::size_t kNumMemeClasses = 8;
+inline constexpr std::size_t kNumMemeClasses = 9;
 
 struct Keypoint {
     float x{0.0f};
@@ -31,7 +31,7 @@ struct MemeClassInfo {
 };
 
 struct PredictionResult {
-    int class_index{7};
+    int class_index{8};
     float confidence{0.0f};
     std::array<float, kNumMemeClasses> probabilities{};
     std::string backend_used{"GPU"};

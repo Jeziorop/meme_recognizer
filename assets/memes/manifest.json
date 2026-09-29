@@ -3,56 +3,65 @@
     {
       "id": "absolute_cinema",
       "title": "ABSOLUTE CINEMA",
-      "subtitle": "Martin Scorsese - Both hands raised open at head height",
+      "subtitle": "Joanna Senyszyn - Both hands raised open at head height",
       "hint": "Raise both hands open near head/shoulder height with elbows bent",
       "accent_hex": "#F59E0B",
-      "index": 0,
-      "image": "absolute_cinema.png"
+      "image": "absolute_cinema.png",
+      "index": 0
     },
     {
-      "id": "thinking_roll_safe",
-      "title": "THINKING (ROLL SAFE)",
-      "subtitle": "Kayode Ewumi - Finger tapping temple, other arm relaxed",
-      "hint": "Touch your temple/forehead with one hand while keeping the other arm down",
+      "id": "thinking_monkey",
+      "title": "THINKING MONKEY",
+      "subtitle": "Thinking Monkey - One hand resting on chin, other arm relaxed",
+      "hint": "Place one hand on your chin while keeping the other arm relaxed down",
       "accent_hex": "#3B82F6",
-      "index": 1,
-      "image": "thinking_roll_safe.png"
+      "image": "thinking_monkey.png",
+      "index": 1
     },
     {
-      "id": "leo_pointing",
-      "title": "LEO POINTING",
-      "subtitle": "Leonardo DiCaprio - Pointing at the screen, hand on chest",
-      "hint": "Extend one arm straight out to the side and hold the other hand near your chest",
+      "id": "elon",
+      "title": "ELON SALUTE",
+      "subtitle": "Elon Musk - One arm stretched straight up and forward",
+      "hint": "Stretch one arm straight up and forward diagonally while keeping the other arm down",
       "accent_hex": "#EF4444",
-      "index": 2,
-      "image": "leo_pointing.png"
+      "image": "elon.png",
+      "index": 2
     },
     {
-      "id": "drake_reject",
-      "title": "DRAKE REJECT",
-      "subtitle": "Hotline Bling - Both hands raised sideways blocking/rejecting",
-      "hint": "Sweep both hands together to one side at shoulder height",
-      "accent_hex": "#F97316",
-      "index": 3,
-      "image": "drake_reject.png"
+      "id": "kamehameha",
+      "title": "KAMEHAMEHA",
+      "subtitle": "Goku - Both arms stretched forward in front next to each other",
+      "hint": "Stretch both arms forward in front of your torso with wrists next to each other",
+      "accent_hex": "#06B6D4",
+      "image": "kamehameha.png",
+      "index": 3
     },
     {
-      "id": "arms_crossed",
-      "title": "ARMS CROSSED (X)",
-      "subtitle": "Wakanda Forever - Both forearms crossed in an X over chest",
-      "hint": "Cross both wrists over your opposite shoulders across your chest",
+      "id": "trade",
+      "title": "TRADE OFFER",
+      "subtitle": "Trade Offer - Both hands pressed together in a praying posture",
+      "hint": "Bring both hands together in front of your chest like praying",
       "accent_hex": "#8B5CF6",
-      "index": 4,
-      "image": "arms_crossed.png"
+      "image": "trade.png",
+      "index": 4
     },
     {
-      "id": "shocked_hands_head",
-      "title": "SHOCKED / HANDS ON HEAD",
-      "subtitle": "Surprised Guy - Both hands placed high on crown/sides of head",
-      "hint": "Place both hands directly on top/sides of your head with elbows flared out",
+      "id": "gagri_gagri",
+      "title": "GAGRI GAGRI",
+      "subtitle": "Gagri Gagri - Scratching the top of your head with both hands",
+      "hint": "Place both hands right on the top of your head as if scratching it",
       "accent_hex": "#EC4899",
-      "index": 5,
-      "image": "shocked_hands_head.png"
+      "image": "gagri_gagri.png",
+      "index": 5
+    },
+    {
+      "id": "spongebob",
+      "title": "SPONGEBOB BICEPS",
+      "subtitle": "SpongeBob Flex - Flexing arm at 90 degrees to show biceps",
+      "hint": "Extend one arm out to the side and bend your elbow 90 degrees upward to show your bicep",
+      "accent_hex": "#EAB308",
+      "image": "spongebob.png",
+      "index": 6
     },
     {
       "id": "t_pose",
@@ -60,17 +69,17 @@
       "subtitle": "Assert Dominance - Both arms stretched straight horizontally",
       "hint": "Extend both arms straight out horizontally at shoulder level",
       "accent_hex": "#10B981",
-      "index": 6,
-      "image": "t_pose.png"
+      "image": "t_pose.png",
+      "index": 7
     },
     {
-      "id": "neutral_chill",
-      "title": "CHILL / NEUTRAL",
-      "subtitle": "Just a Chill Guy - Relaxed idle pose with arms resting down",
-      "hint": "Relax both arms down at your sides",
+      "id": "chill_guy",
+      "title": "CHILL GUY",
+      "subtitle": "Just a Chill Guy - Relaxed posture with arms resting down",
+      "hint": "Stand in a relaxed posture with both arms resting down at your sides",
       "accent_hex": "#64748B",
-      "index": 7,
-      "image": "neutral_chill.png"
+      "image": "chill_guy.png",
+      "index": 8
     }
   ]
 }

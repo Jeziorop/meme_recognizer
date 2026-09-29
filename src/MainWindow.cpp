@@ -664,8 +664,8 @@ void MainWindow::renderImGui(int viewport_width, int viewport_height) {
         ImGui::PopTextWrapPos();
         ImGui::Spacing();
 
-        // Reserve space so all 8 rows of CLASS PROBABILITY ACTIVATIONS fit without scrolling
-        const float prob_section_h = 335.0f * scale;
+        // Reserve space so all 9 rows of CLASS PROBABILITY ACTIVATIONS fit without scrolling
+        const float prob_section_h = 370.0f * scale;
         const float avail_w = ImGui::GetContentRegionAvail().x;
         const float avail_h = std::max(140.0f * scale, ImGui::GetContentRegionAvail().y - prob_section_h);
         if (active_class_idx_ < static_cast<int>(meme_textures_.size()) &&

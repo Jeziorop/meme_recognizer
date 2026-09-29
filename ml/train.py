@@ -46,12 +46,21 @@ def load_real_webcam_dataset(data_dir: Path) -> Tuple[list[np.ndarray], list[int
     webcam_labels = []
     kp_dir = data_dir / "keypoints"
 
+    id_to_index = {m["id"]: idx for idx, m in enumerate(MEME_CLASSES)}
+    # Allow legacy neutral_chill recordings to map to chill_guy
+    if "chill_guy" in id_to_index:
+        id_to_index.setdefault("neutral_chill", id_to_index["chill_guy"])
+
     if kp_dir.exists():
-        for npz_file in kp_dir.glob("*.npz"):
+        for npz_file in sorted(kp_dir.glob("*.npz")):
             try:
                 data = np.load(npz_file)
                 feats = data["features"]
-                cls_idx = int(data["class_index"])
+                cls_id = str(data["class_id"]) if "class_id" in data else ""
+                if cls_id in id_to_index:
+                    cls_idx = id_to_index[cls_id]
+                else:
+                    continue
                 for f in feats:
                     webcam_feats.append(f)
                     webcam_labels.append(cls_idx)

@@ -6,7 +6,7 @@
 
 set(_LOCAL_VCPKG_INSTALLED "${CMAKE_CURRENT_LIST_DIR}/../build/default/vcpkg_installed/x64-linux")
 
-if(EXISTS "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" AND NOT EXISTS "${_LOCAL_VCPKG_INSTALLED}/share/Qt6/Qt6Config.cmake")
+if(EXISTS "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" AND NOT EXISTS "${_LOCAL_VCPKG_INSTALLED}/share/opencv4/OpenCVConfig.cmake")
     include("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 elseif(EXISTS "${_LOCAL_VCPKG_INSTALLED}")
     list(PREPEND CMAKE_PREFIX_PATH "${_LOCAL_VCPKG_INSTALLED}")

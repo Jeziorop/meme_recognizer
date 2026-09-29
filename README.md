@@ -1,6 +1,6 @@
 # Real-Time Meme Gesture Recognizer
 
-A real-time desktop application written in **C++20** that recognizes iconic meme gestures from a webcam feed using a GPU-accelerated PyTorch model exported to ONNX / native CUDA binary format. The application displays the live camera stream with upper-body skeleton tracking alongside the corresponding matched meme image and probability activations in a **Qt 6** GUI.
+A real-time desktop application written in **C++20** that recognizes iconic meme gestures from a webcam feed using a GPU-accelerated PyTorch model exported to ONNX / native CUDA binary format. The application displays the live camera stream with upper-body skeleton tracking alongside the corresponding matched meme image and probability activations in a lightweight **Dear ImGui + OpenGL** GUI.
 
 ---
 
@@ -21,38 +21,36 @@ A real-time desktop application written in **C++20** that recognizes iconic meme
 
 - **ML & Data Pipeline (Python 3.11+)**:
   - `uv` for fast, reproducible dependency management and virtual environments.
-  - `PyTorch 2.4.1` with CUDA acceleration.
+  - `PyTorch` with CUDA acceleration.
   - `YOLOv8n-pose` (Ultralytics) for upper-body keypoint detection.
   - Pose feature extractor (joint angles, torso-normalized coordinates, and Euclidean distances).
   - Hands-free dataset recorder with automatic 3-second countdown and on-the-fly model retraining.
 - **Desktop Application (C++20)**:
-  - **OpenCV 4**: Video capture (V4L2), frame preprocessing, and ONNX pose estimation.
-  - **CUDA Runtime / Custom Kernel**: Single-block cooperative inference kernel for millisecond neural classification.
-  - **Qt 6**: Hardware-accelerated dark theme GUI showing live webcam tracking, confidence meters, and meme cards.
-  - **Build System**: CMake 3.25+, Ninja, `g++-12` / `g++`, and `vcpkg` package manager.
+  - **OpenCV 4**: Video capture (V4L2 with auto-exposure), frame preprocessing, and ONNX pose estimation.
+  - **CUDA Runtime / Custom Kernel**: Single-block cooperative inference kernel for millisecond neural classification (with CPU/OpenCL fallback).
+  - **Dear ImGui & OpenGL (GLX)**: Portable, lightweight, hardware-accelerated dark theme GUI featuring crisp anti-aliased TrueType typography, dynamic DPI/window rescaling, live webcam tracking, and probability meters without heavyweight framework overhead.
+  - **Build System**: CMake 3.25+, Ninja, `g++` / `clang++`, and `vcpkg` package manager.
 
 ---
 
 ## Prerequisites & System Requirements
 
 ### 1. Operating System & Hardware
-- **OS**: Linux (tested on Ubuntu 24.04 LTS).
-- **Webcam**: Standard USB or integrated webcam (`/dev/video0` or `/dev/video2`).
+- **OS**: Linux (tested on Ubuntu 22.04 / 24.04 LTS).
+- **Webcam**: Standard USB or integrated webcam (`/dev/video0`, `/dev/video2`, etc.).
 - **GPU (Optional but recommended)**: Any NVIDIA CUDA-capable GPU with driver version $\ge$ 525 (automatic fallback to CPU if no CUDA GPU is detected).
 
 ### 2. System Packages & Build Tools
-Install the required system compilers, build utilities, Autotools (needed by vcpkg ports), and development libraries:
+Install compilers, build utilities, Autotools (needed by vcpkg ports), and development libraries:
 ```bash
 sudo apt update
 sudo apt install -y build-essential g++ cmake ninja-build git pkg-config \
     autoconf autoconf-archive automake libtool zip unzip tar curl \
-    libx11-dev libxext-dev libxrender-dev libgl1-mesa-dev libegl1-mesa-dev \
-    libxkbcommon-dev libxkbcommon-x11-dev libfontconfig1-dev libfreetype6-dev \
-    libv4l-dev v4l-utils
+    libx11-dev libgl1-mesa-dev libv4l-dev v4l-utils
 ```
 
 ### 3. CUDA Toolkit (For GPU Acceleration)
-First, verify whether NVIDIA CUDA compiler is already installed:
+Check if the NVIDIA CUDA compiler is already installed:
 ```bash
 nvcc --version
 ```
@@ -66,7 +64,7 @@ Check if `uv` is already available:
 ```bash
 uv --version
 ```
-If not installed, install [`uv`](https://github.com/astral-sh/uv) (fast Python package and project manager):
+If not installed, install [`uv`](https://github.com/astral-sh/uv):
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -77,7 +75,7 @@ Check if `vcpkg` is already installed and `VCPKG_ROOT` is configured:
 vcpkg version
 echo "$VCPKG_ROOT"
 ```
-If you do not already have `vcpkg`, clone and bootstrap it, then export `VCPKG_ROOT`:
+If you do not already have `vcpkg`, clone and bootstrap it, then set `VCPKG_ROOT`:
 ```bash
 git clone https://github.com/microsoft/vcpkg.git ~/.local/share/vcpkg
 ~/.local/share/vcpkg/bootstrap-vcpkg.sh
@@ -89,7 +87,7 @@ export VCPKG_ROOT="$HOME/.local/share/vcpkg"
 
 ## Building the C++ Application
 
-Configure and build the project using CMake presets:
+Configure, build, and test using CMake presets:
 
 ```bash
 # 1. Configure CMake with Ninja and vcpkg
@@ -120,7 +118,7 @@ ctest --preset default --output-on-failure
 | `--pose <0..7>` | Launch the app initialized with a specific synthetic pose preset (0 = Absolute Cinema, 1 = Roll Safe, etc.). |
 
 ### Interactive GUI Controls
-- **Input Source Dropdown**: Switch between live webcams (`/dev/video0`, `/dev/video2`), auto-cycle demo, or fixed gesture presets.
+- **Input Source Dropdown**: Switch between live webcams, auto-cycle demo, or fixed gesture presets.
 - **Mirror Camera Checkbox**: Toggle selfie mirror mode.
 - **Show Skeleton HUD Checkbox**: Toggle upper-body joint tracking and skeleton overlay.
 - **Keyboard Shortcuts**:
