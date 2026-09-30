@@ -28,8 +28,6 @@ public:
 private:
     cv::dnn::Net pose_net_;
     bool onnx_loaded_{false};
-    bool has_prev_kp_{false};
-    PoseSkeleton prev_kp_{};
 };
 
 } // namespace meme

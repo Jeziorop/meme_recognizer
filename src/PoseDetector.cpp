@@ -24,6 +24,9 @@ bool PoseDetector::loadModels(const std::filesystem::path& onnx_path) {
 
 PoseSkeleton PoseDetector::detect(const cv::Mat& bgr_frame) {
     PoseSkeleton kp = PoseFeatureExtractor::getCanonicalPose(static_cast<int>(kNumMemeClasses) - 1, false);
+    for (auto& pt : kp) {
+        pt.confidence = 0.0f;
+    }
     if (bgr_frame.empty() || !onnx_loaded_) {
         return kp;
     }
@@ -58,10 +61,6 @@ PoseSkeleton PoseDetector::detect(const cv::Mat& bgr_frame) {
     cv::Mat out = pose_net_.forward(); // Shape: [1, 56, 3024]
 
     // Parse YOLOv8-pose output: 4 box coords + 1 person conf + 17 * 3 keypoints = 56 rows
-    // Rows:
-    // 0..3: cx, cy, w, h
-    // 4: person confidence
-    // 5..55: keypoint (x, y, conf) for 17 keypoints
     const int channels = out.size[1]; // 56
     const int num_anchors = out.size[2]; // 3024
 
@@ -96,20 +95,6 @@ PoseSkeleton PoseDetector::detect(const cv::Mat& bgr_frame) {
         }
     }
 
-    // Temporal smoothing for rock-solid tracking
-    if (has_prev_kp_) {
-        constexpr float kAlpha = 0.55f;
-        for (std::size_t i = 0; i < kNumKeypoints; ++i) {
-            if (kp[i].confidence >= 0.30f) {
-                kp[i].x = kAlpha * kp[i].x + (1.0f - kAlpha) * prev_kp_[i].x;
-                kp[i].y = kAlpha * kp[i].y + (1.0f - kAlpha) * prev_kp_[i].y;
-            } else {
-                kp[i] = prev_kp_[i];
-            }
-        }
-    }
-    prev_kp_ = kp;
-    has_prev_kp_ = true;
     return kp;
 }
 
