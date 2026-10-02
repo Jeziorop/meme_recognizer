@@ -6,27 +6,28 @@ A real-time desktop application written in **C++20** that recognizes iconic meme
 
 ## Recognized Meme Gestures
 
-1. **Absolute Cinema** (Martin Scorsese — hands open at head height)
-2. **Thinking / Roll Safe** (Kayode Ewumi — finger tapping temple)
-3. **Leo Pointing** (Rick Dalton / Leonardo DiCaprio — arm pointing forward)
-4. **Drake Reject** (Drake hotline bling — palm facing camera turned away)
-5. **Arms Crossed** (Arms folded across chest in an "X" pose)
-6. **Shocked / Hands on Head** (Both hands placed on top of head)
-7. **T-Pose Dominance** (Arms straight horizontally forming a "T")
-8. **Neutral / Chill** (Resting upper body pose)
+1. **Absolute Cinema** (`absolute_cinema.png` — Martin Scorsese: both hands raised open at head height)
+2. **Thinking Monkey** (`thinking_monkey.png` — one hand resting on chin, other arm relaxed)
+3. **Elon Salute** (`elon.png` — Elon Musk: one arm stretched straight up and forward)
+4. **Kamehameha** (`kamehameha.png` — Goku: both arms stretched forward in front next to each other)
+5. **Trade Offer** (`trade.png` — hands pressed together in a praying / steeple pose)
+6. **Gagri Gagri** (`gagri_gagri.png` — scratching top of head with both hands)
+7. **SpongeBob Biceps** (`spongebob.png` — arm extended and bent 90° upward flexing bicep)
+8. **T-Pose Dominance** (`t_pose.png` — both arms stretched straight horizontally at shoulder level)
+9. **Chill Guy** (`chill_guy.png` — relaxed idle posture with arms resting down)
 
 ---
 
 ## Architecture & Technology Stack
 
 - **ML & Data Pipeline (Python 3.11+)**:
-  - `uv` for fast, reproducible dependency management and virtual environments.
+  - Flexible dependency management: works with [`uv`](https://github.com/astral-sh/uv) or standard Python `venv` + `pip` without code changes.
   - `PyTorch` with CUDA acceleration.
-  - `YOLOv8n-pose` (Ultralytics) for upper-body keypoint detection.
-  - Pose feature extractor (joint angles, torso-normalized coordinates, and Euclidean distances).
-  - Hands-free dataset recorder with automatic 3-second countdown and on-the-fly model retraining.
+  - `YOLOv8n-pose` (Ultralytics) for real-time upper-body keypoint detection.
+  - 54-D pose feature extractor (joint unit vectors, cosine/sine angles, torso-normalized coordinates, and Euclidean distances).
+  - Standalone webcam recorder with auto camera detection, target ghost skeleton guides, target meme thumbnails, 3-second countdowns, and on-the-fly model retraining.
 - **Desktop Application (C++20)**:
-  - **OpenCV 4**: Video capture (V4L2 with auto-exposure), frame preprocessing, and ONNX pose estimation.
+  - **OpenCV 4**: Video capture (V4L2 device discovery and auto-exposure), frame preprocessing, and ONNX pose estimation.
   - **CUDA Runtime / Custom Kernel**: Single-block cooperative inference kernel for millisecond neural classification (with CPU/OpenCL fallback).
   - **Dear ImGui & OpenGL (GLX)**: Portable, lightweight, hardware-accelerated dark theme GUI featuring crisp anti-aliased TrueType typography, dynamic DPI/window rescaling, live webcam tracking, and probability meters without heavyweight framework overhead.
   - **Build System**: CMake 3.25+, Ninja, `g++` / `clang++`, and `vcpkg` package manager.
@@ -59,14 +60,30 @@ If not installed and you have an NVIDIA GPU:
 sudo apt install -y nvidia-cuda-toolkit
 ```
 
-### 4. Python Package Manager (`uv`)
-Check if `uv` is already available:
-```bash
-uv --version
-```
-If not installed, install [`uv`](https://github.com/astral-sh/uv):
+### 4. Python Environment Setup
+
+You can set up the Python ML pipeline using either **`uv`** (fastest) or standard **`venv` + `pip`** (no extra tools needed):
+
+#### Option A: Using `uv` (Recommended)
+Check if `uv` is installed, or install it:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+Create the virtual environment and install dependencies:
+```bash
+uv sync
+```
+
+#### Option B: Standard Python (`venv` + `pip` without `uv`)
+No changes are required to run without `uv`. Simply create a standard virtual environment and install dependencies via `pip`:
+```bash
+# 1. Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Upgrade pip and install the package with CUDA-enabled PyTorch
+pip install --upgrade pip
+pip install -e . --extra-index-url https://download.pytorch.org/whl/cu121
 ```
 
 ### 5. C++ Dependencies (`vcpkg`)
@@ -96,8 +113,8 @@ cmake --preset default
 # 2. Build the executable and test suite
 cmake --build --preset default
 
-# 3. Run automated regression tests
-ctest --preset default --output-on-failure
+# 3. Run automated regression tests (verifies all 9 canonical & mirrored poses pass on GPU)
+./build/default/meme_recognizer_tests
 ```
 
 ---
@@ -115,7 +132,7 @@ ctest --preset default --output-on-failure
 | `-h, --help` | Display command-line options. |
 | `--self-test` | Run headless GUI & inference self-test, verify model execution, and exit. |
 | `--capture <file.png>` | Capture and save a snapshot of the application window to disk. |
-| `--pose <0..7>` | Launch the app initialized with a specific synthetic pose preset (0 = Absolute Cinema, 1 = Roll Safe, etc.). |
+| `--pose <0..8>` | Launch the app initialized with a specific synthetic pose preset (`0` = Absolute Cinema, `1` = Thinking Monkey, etc.). |
 
 ### Interactive GUI Controls
 - **Input Source Dropdown**: Switch between live webcams, auto-cycle demo, or fixed gesture presets.
@@ -123,7 +140,7 @@ ctest --preset default --output-on-failure
 - **Show Skeleton HUD Checkbox**: Toggle upper-body joint tracking and skeleton overlay.
 - **Keyboard Shortcuts**:
   - `0`: Switch to live webcam.
-  - `1` – `8`: Instantly switch to simulated poses 1 through 8.
+  - `1` – `9`: Instantly switch to simulated poses 1 through 9.
   - `Q` or `Esc`: Quit application.
 
 ---
@@ -132,25 +149,66 @@ ctest --preset default --output-on-failure
 
 Data collection and model training are completely decoupled from the C++ presentation app.
 
-### 1. Hands-Free Webcam Data Collection
-To record customized gestures from your own webcam with audio countdowns and 3-second pose capture:
+### 1. Interactive Webcam Data Collection
+To record customized gestures from your webcam with visual pose guides, countdowns, and on-the-fly GPU training:
+
+**With `uv`:**
 ```bash
 uv run record-dataset
 ```
-Follow the interactive prompts:
-- Select which gesture to record (or record all 8 in sequence).
-- A 3-second countdown will prepare you before recording starts.
-- After recording, the script will automatically retrain and re-export the model weights.
+
+**Without `uv` (Standard Python):**
+```bash
+python -m ml.record_dataset
+# or directly with active .venv:
+.venv/bin/python ml/record_dataset.py
+```
+
+#### Camera Selection:
+The script automatically probes and selects active camera devices (such as `/dev/video2`). If you have multiple devices or want to choose manually:
+```bash
+# List all detected capture devices
+python ml/record_dataset.py --list-cameras
+
+# Specify a camera index or path
+python ml/record_dataset.py --camera 2
+python ml/record_dataset.py --camera /dev/video2
+```
+
+#### In-App Controls:
+- **`1` – `9`**: Select the target meme gesture to record.
+- **`H`**: Toggle the ghost target pose skeleton guide and meme thumbnail preview.
+- **`C`**: Cycle to the next detected camera device on the fly.
+- **`SPACE`**: Start a 3-second countdown and record a burst of pose frames.
+- **`T`**: Train the PyTorch classifier on GPU and re-export ONNX & CUDA model binaries.
+- **`Q` / `Esc`**: Quit.
 
 ### 2. Manual Pipeline Execution
-To execute the complete data generation, model training, and ONNX export pipeline:
+To synchronize the meme manifest, build the pose backbone, and retrain the classifier:
+
+**With `uv`:**
 ```bash
-# Fetch YOLOv8 pose weights and generate synthetic & recorded training data
+# Run the complete end-to-end pipeline
 uv run python -m ml.pipeline
 
 # Or run training directly
 uv run python ml/train.py
 ```
+
+**Without `uv` (Standard Python):**
+```bash
+# 1. Synchronize manifest.json with real meme images in assets/memes/
+python -m ml.collect_memes
+
+# 2. Run the end-to-end pipeline (manifest sync + backbone export + training)
+python -m ml.pipeline
+
+# Or run classifier training directly
+python ml/train.py
+```
+
 This updates:
+- `assets/memes/manifest.json` (class metadata, titles, hints, accent colors)
 - `models/meme_gesture_classifier.onnx` (OpenCV DNN compatible model)
 - `models/meme_gesture_classifier.bin` (Direct binary weights for custom CUDA inference)
+- `models/training_report.json` (Validation accuracy and numerical equivalence metrics)
